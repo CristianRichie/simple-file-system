@@ -6,11 +6,17 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
     fs->disk = disk;
 
     FirstDirectoryBlock * first_dir_block = malloc(BLOCK_SIZE);
-    int ret = DiskDriver_readBlock(disk, first_dir_block, 0);
-    if (ret == -1)
+    if (!first_dir_block)
         return NULL;
+    int ret = DiskDriver_readBlock(disk, first_dir_block, 0);
+    if (ret == -1) {
+        free(first_dir_block);
+        return NULL;
+    }
 
     DirectoryHandle * dir_handle = malloc(sizeof(DirectoryHandle));
+    if (!dir_handle) 
+        return NULL;
     dir_hanlde->sfs = fs;
     dir_handle->dcb = first_dir_block;
     dir_handle->directory = NULL;
