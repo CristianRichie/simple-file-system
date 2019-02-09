@@ -66,6 +66,7 @@ typedef struct {
 typedef struct {
   DiskDriver* disk;
   // add more fields if needed
+  FirstDirectoryBlock* current_directory_block;
 } SimpleFS;
 
 // this is a file handle, used to refer to open files

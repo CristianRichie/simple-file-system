@@ -1,5 +1,7 @@
 #include "simplefs.h"
 
+#include <stdlib.h>
+#include <string.h>
 
 DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
 
@@ -27,7 +29,33 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
     return dir_handle;
 }
 
-void SimpleFS_format(SimpleFS* fs);
+void SimpleFS_format(SimpleFS* fs) {
+    int bmap_size = fs->disk->header->bitmap_entries;
+    bzero(fs->disk->bitmap_data, bmap_size);
+    fs->disk->header->free_blocks = fs->disk->header->num_blocks;
+    fs->disk->header->first_free_block = 0;
+
+    FirstDirectoryBlock * fdb = malloc(sizeof(FirstDirectoryBlock));
+    if (!fdb)
+        return;
+    fdb->header.previous_block = -1;
+    fdb->header.next_block = -1;
+    fdb->header.block_in_file = 0;
+    fdb->fcb.directory_block = -1;
+    fdb->fcb.block_in_disk = 0;
+    strcpy(fdb->fcb.name, "/");
+    fdb->size_in_bytes = BLOCK_SIZE;
+    fdb->size_in_blocks = 1;
+    fdb->is_dir = 1;
+
+    int ret = DiskDriver_writeBlock(fs->disk, fdb, 0);
+    if (ret == -1) {
+        free(fdb);
+        return;
+    }
+
+    fs->current_directory_block = fdb;
+}
 
 FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename);
 
