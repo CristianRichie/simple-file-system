@@ -1,27 +1,26 @@
-CCOPTS= -Wall -g -std=gnu99 -Wstrict-prototypes
-LIBS= 
+DINCLUDE=./include
+DSRC=./src
+
 CC=gcc
-AR=ar
+CFLAGS=-Wall -g -std=gnu99 -Wstrict-prototypes -I$(DINCLUDE)
 
+HEADERS=$(wildcard $(DINCLUDE)/*)
+SRC=$(wildcard $(DSRC)/*.c)
+OBJ=$(patsubst %.c,%.o,$(wildcard $(DSRC)/*.c))
 
-BINS= simplefs_test
+.PHONY: clean all
 
-OBJS = bitmap.o simplefs.o disk_driver.o
+all: $(OBJ) test
 
-HEADERS=bitmap.h\
-	disk_driver.h\
-	simplefs.h
+%.o: %.c $(HEADERS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-%.o:	%.c $(HEADERS)
-	$(CC) $(CCOPTS) -c -o $@  $<
+run:
+	make -s -C ./tests run
 
-.phony: clean all
-
-
-all:	$(BINS) 
-
-simplefs_test: simplefs_test.c $(OBJS) 
-	$(CC) $(CCOPTS)  -o $@ $^ $(LIBS)
+test:
+	make -C ./tests
 
 clean:
-	rm -rf *.o *~  $(BINS)
+	make -C ./tests clean
+	rm -rf $(DSRC)/*.o

@@ -1,9 +1,12 @@
-#include "disk_driver.h"
+#include <disk_driver.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <unistd.h>
+#include <strings.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>     
 
@@ -22,7 +25,7 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     if (num_blocks & 0x7) bitmap_size ++;
 
     int zone_size = sizeof(DiskHeader) + bitmap_size * BLOCK_SIZE * num_blocks;
-    void * zone = mmap(0, zone_size, PROT_READ | PROT_WRITE, MEM_SHARED, fd, 0);
+    void * zone = mmap(0, zone_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (!zone) {
         fprintf(stderr, "[DD - init] mmap failed.");
         ret = close(fd);

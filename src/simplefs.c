@@ -1,4 +1,4 @@
-#include "simplefs.h"
+#include <simplefs.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -19,10 +19,10 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
     DirectoryHandle * dir_handle = malloc(sizeof(DirectoryHandle));
     if (!dir_handle) 
         return NULL;
-    dir_hanlde->sfs = fs;
+    dir_handle->sfs = fs;
     dir_handle->dcb = first_dir_block;
     dir_handle->directory = NULL;
-    dir_handle->current_block = first_dir_block->header;
+    dir_handle->current_block = &first_dir_block->header;
     dir_handle->pos_in_dir = 0;
     dir_handle->pos_in_block = 0;
 
@@ -59,23 +59,41 @@ void SimpleFS_format(SimpleFS* fs) {
 }
 
 FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
-    
+    return NULL;
 }
 
-int SimpleFS_readDir(char** names, DirectoryHandle* d);
+int SimpleFS_readDir(char** names, DirectoryHandle* d) {
+    return -1;
+}
 
-FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename);
+FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename) {
+    return NULL;
+}
 
-int SimpleFS_close(FileHandle* f);
+int SimpleFS_close(FileHandle* f) {
+    return -1;
+}
 
-int SimpleFS_write(FileHandle* f, void* data, int size);
+int SimpleFS_write(FileHandle* f, void* data, int size) {
+    return -1;
+}
 
-int SimpleFS_read(FileHandle* f, void* data, int size);
+int SimpleFS_read(FileHandle* f, void* data, int size) {
+    return -1;
+}
 
-int SimpleFS_seek(FileHandle* f, int pos);
+int SimpleFS_seek(FileHandle* f, int pos) {
+    return -1;
+}
 
-int SimpleFS_changeDir(DirectoryHandle* d, char* dirname);
+int SimpleFS_changeDir(DirectoryHandle* d, char* dirname) {
+    return -1;
+}
 
-int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
+int SimpleFS_mkDir(DirectoryHandle* d, char* dirname) {
+    return -1;
+}
 
-int SimpleFS_remove(SimpleFS* fs, char* filename);
+int SimpleFS_remove(SimpleFS* fs, char* filename) {
+    return -1;
+}
