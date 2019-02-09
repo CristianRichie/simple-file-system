@@ -44,9 +44,10 @@ void SimpleFS_format(SimpleFS* fs) {
     fdb->fcb.directory_block = -1;
     fdb->fcb.block_in_disk = 0;
     strcpy(fdb->fcb.name, "/");
-    fdb->size_in_bytes = BLOCK_SIZE;
-    fdb->size_in_blocks = 1;
-    fdb->is_dir = 1;
+    fdb->fcb.size_in_bytes = BLOCK_SIZE;
+    fdb->fcb.size_in_blocks = 1;
+    fdb->fcb.is_dir = 1;
+    fdb->num_entries = 0;
 
     int ret = DiskDriver_writeBlock(fs->disk, fdb, 0);
     if (ret == -1) {
@@ -57,7 +58,9 @@ void SimpleFS_format(SimpleFS* fs) {
     fs->current_directory_block = fdb;
 }
 
-FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename);
+FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
+    
+}
 
 int SimpleFS_readDir(char** names, DirectoryHandle* d);
 
