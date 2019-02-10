@@ -1,4 +1,5 @@
 DINCLUDE=../include
+DSRC=../src
 
 CC=gcc
 CFLAGS= -Wall -g -std=gnu99 -Wstrict-prototypes -I$(DINCLUDE)
@@ -11,8 +12,8 @@ OBJ=$(wildcard $(DSRC)/*.o)
 
 all: $(BINS)
 
-%: %.c $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS)
+%: %.c 
+	$(CC) -o $@ $< $(OBJ) $(CFLAGS)
 
 run:
 	./run_tests.sh
