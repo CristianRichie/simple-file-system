@@ -16,7 +16,7 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     int exists = access(filename, F_OK) != -1;
     int fd = open(filename, O_CREAT | O_RDWR, 0600);
     if (fd == -1) {
-        fprintf(stderr, "[DD - init] open failed.");
+        fprintf(stderr, "[DD - init] open failed.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -24,29 +24,38 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     int bitmap_size = num_blocks >> 3;
     if (num_blocks & 0x7) bitmap_size ++;
 
-    int zone_size = sizeof(DiskHeader) + bitmap_size * BLOCK_SIZE * num_blocks;
+    int zone_size = sizeof(DiskHeader) + bitmap_size + BLOCK_SIZE * num_blocks;
+    
+    if (!exists) {
+        ret = posix_fallocate(fd, 0, zone_size);
+        if (ret != 0) {
+            fprintf(stderr, "[DD - init] fallocate failed.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    
     void * zone = mmap(0, zone_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (!zone) {
-        fprintf(stderr, "[DD - init] mmap failed.");
+        fprintf(stderr, "[DD - init] mmap failed.\n");
         ret = close(fd);
         if (ret == -1) 
-            fprintf(stderr, "[DD -init] close failed.");
+            fprintf(stderr, "[DD -init] close failed.\n");
         exit(EXIT_FAILURE);
     }
 
-    disk->header = zone;
-    disk->bitmap_data = (char*)zone + bitmap_size;
+    disk->header = (DiskHeader*)zone;
+    disk->bitmap_data = (char*)zone + sizeof(DiskHeader);
     disk->fd = fd;
 
     if (exists) {
         if (disk->header->num_blocks != num_blocks) { 
-            fprintf(stderr, "[DD - init] trying to use an existing disk of different size.");
+            fprintf(stderr, "[DD - init] trying to use an existing disk of different size.\n");
             ret = close(fd);
             if (ret == -1) 
-                fprintf(stderr, "[DD -init] close failed.");
+                fprintf(stderr, "[DD -init] close failed.\n");
             ret = munmap(zone, zone_size);
             if (ret == -1)
-                fprintf(stderr, "[DD - init] munmap failed.");
+                fprintf(stderr, "[DD - init] munmap failed.\n");
             exit(EXIT_FAILURE);
         }
     } 
@@ -62,11 +71,11 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
 }
 
 int DiskDriver_readBlock(DiskDriver* disk, void* dest, int block_num) {
-    if (block_num >= disk->header->num_blocks)
+    if (block_num >= disk->header->num_blocks || block_num < 0)
         return -1;
 
     BitMap bmap = {
-        .num_bits = disk->header->num_blocks,
+        .num_bits = disk->header->bitmap_blocks,
         .entries = disk->bitmap_data
     };
     if (BitMap_get(&bmap, block_num, 0) == block_num)
@@ -78,16 +87,19 @@ int DiskDriver_readBlock(DiskDriver* disk, void* dest, int block_num) {
 }
 
 int DiskDriver_writeBlock(DiskDriver* disk, void* src, int block_num) {
-    if (block_num >= disk->header->num_blocks)
+    if (block_num >= disk->header->num_blocks || block_num < 0)
         return -1;
     
     if (block_num == disk->header->first_free_block) 
-        disk->header->first_free_block = DiskDriver_getFreeBlock(disk, block_num);
+        disk->header->first_free_block = DiskDriver_getFreeBlock(disk, block_num + 1);
 
     BitMap bmap = {
-        .num_bits = disk->header->num_blocks,
+        .num_bits = disk->header->bitmap_blocks,
         .entries = disk->bitmap_data
     };
+    if (BitMap_get(&bmap, block_num, 0) == block_num)
+        disk->header->free_blocks --;
+
     if (BitMap_set(&bmap, block_num, 1) == -1)
         return -1;
 
@@ -97,11 +109,11 @@ int DiskDriver_writeBlock(DiskDriver* disk, void* src, int block_num) {
 }
 
 int DiskDriver_freeBlock(DiskDriver* disk, int block_num) {
-    if (block_num >= disk->header->num_blocks)
+    if (block_num >= disk->header->num_blocks || block_num < 0)
         return -1;
 
     BitMap bmap = {
-        .num_bits = disk->header->num_blocks,
+        .num_bits = disk->header->bitmap_blocks,
         .entries = disk->bitmap_data
     };
     if (BitMap_set(&bmap, block_num, 0) == -1)
@@ -118,7 +130,7 @@ int DiskDriver_getFreeBlock(DiskDriver* disk, int start) {
         return -1;
     
     BitMap bmap = {
-        .num_bits = disk->header->num_blocks,
+        .num_bits = disk->header->bitmap_blocks,
         .entries = disk->bitmap_data
     };
     return BitMap_get(&bmap, start, 0);
@@ -128,7 +140,7 @@ int DiskDriver_flush(DiskDriver* disk) {
     int ret;
     int zone_size = sizeof(DiskHeader) + disk->header->bitmap_entries +  
                         disk->header->num_blocks * BLOCK_SIZE;
-    ret = msync(disk->header, zone_size, MS_SYNC);
+    ret = msync(disk->header, zone_size, MS_ASYNC);
     if (ret == -1)
         return -1;
     return 0;
