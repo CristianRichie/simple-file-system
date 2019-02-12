@@ -48,15 +48,19 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     disk->fd = fd;
 
     if (exists) {
-        if (disk->header->num_blocks != num_blocks) { 
-            fprintf(stderr, "[DD - init] trying to use an existing disk of different size.\n");
-            ret = close(fd);
-            if (ret == -1) 
-                fprintf(stderr, "[DD -init] close failed.\n");
-            ret = munmap(zone, zone_size);
-            if (ret == -1)
-                fprintf(stderr, "[DD - init] munmap failed.\n");
-            exit(EXIT_FAILURE);
+        int difference = num_blocks - disk->header->num_blocks;
+        if (difference > 0) { 
+            ret = posix_fallocate(disk->fd, zone_size - difference * BLOCK_SIZE, zone_size);
+            if (ret != 0) {
+                fprintf(stderr, "[DD - init] fallocate failed.\n");
+                exit(EXIT_FAILURE);
+            } 
+            disk->header->num_blocks = num_blocks;
+            disk->header->bitmap_blocks = num_blocks;
+            disk->header->bitmap_entries = bitmap_size;
+            disk->header->free_blocks += difference;
+
+            bzero(disk->bitmap_data + difference, bitmap_size);
         }
     } 
     else {
