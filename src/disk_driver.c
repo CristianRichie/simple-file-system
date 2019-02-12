@@ -12,9 +12,9 @@
 #include <stdlib.h>     
 
 
-static void DiskDriver_initDiskHeader(DiskHeader * dh, int num_blocks, int bitmap_size, 
+static void DiskDriver_initDiskHeader(DiskHeader* dh, int num_blocks, int bitmap_size, 
                                         int free_blocks, int first_free_block, 
-                                        char * bitmap_data) {
+                                        char* bitmap_data) {
     if (!dh)
         return;
 
@@ -144,3 +144,18 @@ int DiskDriver_flush(DiskDriver* disk) {
         return -1;
     return 0;
 }
+
+void DiskDriver_print(DiskDriver* disk) {
+    if (!disk)
+        return;
+    
+    printf("***** DISK INFO *****\n");
+    printf("Disk file descriptor: %d\n", disk->fd);
+    printf("Num blocks: %d\n", disk->header->num_blocks);
+    printf("Bitmap blocks: %d\n", disk->header->bitmap_blocks);
+    printf("Bitmap entries: %d\n", disk->header->bitmap_entries);
+    printf("Free blocks: %d\n", disk->header->free_blocks);
+    printf("First free block: %d\n", disk->header->first_free_block);
+    printf("*********************\n");
+}
+

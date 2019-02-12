@@ -29,6 +29,8 @@ int main(int argc, char * argv[]) {
         printf("Written block considered free.\n");
         exit(EXIT_FAILURE);
     }
+
+    DiskDriver_print(&disk_driver);
     
     ret = DiskDriver_flush(&disk_driver);
     if (ret == -1) {
@@ -69,6 +71,8 @@ int main(int argc, char * argv[]) {
         printf("Something went wrong in freeing.\n");
         exit(EXIT_FAILURE);
     }
+
+    DiskDriver_print(&disk_driver);
 
     printf("TEST COMPLETED. SUCCESS.\n");
     return 0;
