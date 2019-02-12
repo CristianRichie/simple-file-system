@@ -12,6 +12,22 @@
 #include <stdlib.h>     
 
 
+static void DiskDriver_initDiskHeader(DiskHeader * dh, int num_blocks, int bitmap_size, 
+                                        int free_blocks, int first_free_block, 
+                                        char * bitmap_data) {
+    if (!dh)
+        return;
+
+    dh->num_blocks = num_blocks;
+    dh->bitmap_blocks = num_blocks;
+    dh->bitmap_entries = bitmap_size;
+    dh->free_blocks = free_blocks;
+    dh->first_free_block = first_free_block;
+
+    bzero(bitmap_data, bitmap_size);
+}
+
+
 void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     int ret;
     int exists = access(filename, F_OK) != -1;
@@ -41,23 +57,15 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
         if (difference > 0) { 
             ret = posix_fallocate(disk->fd, zone_size - difference * BLOCK_SIZE, zone_size);
             CHECK_ERROR(ret != 0, "[DD - init] fallocate failed.\n"); 
-
-            disk->header->num_blocks = num_blocks;
-            disk->header->bitmap_blocks = num_blocks;
-            disk->header->bitmap_entries = bitmap_size;
-            disk->header->free_blocks += difference;
-
-            bzero(disk->bitmap_data + difference, bitmap_size);
+            DiskDriver_initDiskHeader(disk->header, num_blocks, bitmap_size, 
+                                        disk->header->free_blocks + difference, 
+                                        disk->header->first_free_block,
+                                        disk->bitmap_data + difference);
         }
     } 
     else {
-        disk->header->num_blocks = num_blocks;
-        disk->header->bitmap_blocks = num_blocks;
-        disk->header->bitmap_entries = bitmap_size;
-        disk->header->free_blocks = num_blocks;
-        disk->header->first_free_block = 0;
-
-        bzero(disk->bitmap_data, bitmap_size);
+        DiskDriver_initDiskHeader(disk->header, num_blocks, bitmap_size, 
+                                    num_blocks, 0, disk->bitmap_data); 
     }
 }
 
