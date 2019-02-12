@@ -14,7 +14,7 @@ int BitMap_indexToBlock(int entry, uint8_t bit_num) {
 }
 
 int BitMap_get(BitMap* bmap, int start, int status) {
-    int idx = 0;
+    int idx = start;
     while (idx < bmap->num_bits) {
         BitMapEntryKey entry = BitMap_blockToIndex(idx);
         int current_status = bmap->entries[entry.entry_num] >> entry.bit_num & 0x1;
