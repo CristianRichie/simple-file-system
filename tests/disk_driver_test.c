@@ -16,7 +16,7 @@ int main(int argc, char * argv[]) {
     printf("First free block: %d\n", free_block);
 
     char buffer_out[BLOCK_SIZE];
-    strcpy(buffer_out, "RANDOMDATA-RANDOMDATA");
+    strncpy(buffer_out, "RANDOMDATA-RANDOMDATA", sizeof(buffer_out));
     ret = DiskDriver_writeBlock(&disk_driver, (void*)buffer_out, free_block);
     if (ret == -1) {
         printf("Write on %d failed.\n", free_block);
@@ -30,14 +30,12 @@ int main(int argc, char * argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    /*
     ret = DiskDriver_flush(&disk_driver);
     if (ret == -1) {
         printf("Flushing failed.\n");
         exit(EXIT_FAILURE);
     }
     printf("Disk flush succedeed.\n");
-    */
 
     char buffer_in[BLOCK_SIZE];
     ret = DiskDriver_readBlock(&disk_driver, (void*)buffer_in, free_block);
