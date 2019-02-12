@@ -1,4 +1,5 @@
 #include <disk_driver.h>
+#include <common.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -15,10 +16,7 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     int ret;
     int exists = access(filename, F_OK) != -1;
     int fd = open(filename, O_CREAT | O_RDWR, 0600);
-    if (fd == -1) {
-        fprintf(stderr, "[DD - init] open failed.\n");
-        exit(EXIT_FAILURE);
-    }
+    CHECK_ERROR(fd == -1, "[DD - init] open failed.\n");
 
 
     int bitmap_size = num_blocks >> 3;
@@ -28,20 +26,11 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
     
     if (!exists) {
         ret = posix_fallocate(fd, 0, zone_size);
-        if (ret != 0) {
-            fprintf(stderr, "[DD - init] fallocate failed.\n");
-            exit(EXIT_FAILURE);
-        }
+        CHECK_ERROR(ret != 0, "[DD - init] fallocate failed.\n"); 
     }
     
     void * zone = mmap(0, zone_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (!zone) {
-        fprintf(stderr, "[DD - init] mmap failed.\n");
-        ret = close(fd);
-        if (ret == -1) 
-            fprintf(stderr, "[DD -init] close failed.\n");
-        exit(EXIT_FAILURE);
-    }
+    CHECK_ERROR(!zone, "[DD - init] mmap failed.\n");
 
     disk->header = (DiskHeader*)zone;
     disk->bitmap_data = (char*)zone + sizeof(DiskHeader);
@@ -51,10 +40,8 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
         int difference = num_blocks - disk->header->num_blocks;
         if (difference > 0) { 
             ret = posix_fallocate(disk->fd, zone_size - difference * BLOCK_SIZE, zone_size);
-            if (ret != 0) {
-                fprintf(stderr, "[DD - init] fallocate failed.\n");
-                exit(EXIT_FAILURE);
-            } 
+            CHECK_ERROR(ret != 0, "[DD - init] fallocate failed.\n"); 
+
             disk->header->num_blocks = num_blocks;
             disk->header->bitmap_blocks = num_blocks;
             disk->header->bitmap_entries = bitmap_size;
