@@ -3,8 +3,8 @@
 Final project of the course Sistemi Operativi, 2018/2019. 
 
 ```
-    make            # compile the libraries and every tests 
-    make run        # run every tests
+    make            # compile the libraries and every test 
+    make run        # run every test
 ```
 
 
