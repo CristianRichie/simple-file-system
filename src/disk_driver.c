@@ -60,7 +60,7 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks) {
             DiskDriver_initDiskHeader(disk->header, num_blocks, bitmap_size, 
                                         disk->header->free_blocks + difference, 
                                         disk->header->first_free_block,
-                                        disk->bitmap_data + difference);
+                                        disk->bitmap_data + disk->header->bitmap_entries);
         }
     } 
     else {
