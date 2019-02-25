@@ -108,7 +108,7 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d);
 
 
 // opens a file in the current directory. The file should be exisiting
-FileHandle* SimpleFS_openFile(SimpleFs*fs, const char* filename);
+FileHandle* SimpleFS_openFile(SimpleFS* fs, const char* filename);
 
 
 // closes a file handle (destroyes it)

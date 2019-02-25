@@ -33,7 +33,7 @@ void SimpleFS_format(SimpleFS* fs) {
     fs->disk->header->free_blocks = fs->disk->header->num_blocks;
     fs->disk->header->first_free_block = 0;
 
-    FirstDirectoryBlock fdb;);
+    FirstDirectoryBlock fdb;
     fdb.header.previous_block = -1;
     fdb.header.next_block = -1;
     fdb.header.block_in_file = 0;
@@ -98,7 +98,7 @@ int SimpleFS_seek(FileHandle* f, int pos) {
                 return -1;
             future_header = block.header;
             
-        } while(future_header.block_in_file != target);
+        } while(future_header.block_in_file != target_block);
         f->pos_in_file = pos;
         f->current_block = &future_header;
         return pos;
@@ -114,7 +114,7 @@ int SimpleFS_seek(FileHandle* f, int pos) {
             if (ret == -1)
                 return -1;
             future_header = block.header;
-        } while(future_header.block_in_file != target);
+        } while(future_header.block_in_file != target_block);
         f->pos_in_file = pos;
         f->current_block = &future_header;
         return pos;
@@ -129,7 +129,7 @@ int SimpleFS_mkDir(SimpleFS* fs, char* dirname) {
     if (!fs) 
         return -1;
 
-    int free_block = DiskDriver_getFreeBlock(fs->disk, fs->current_directory_block.fcb.block_in_disk);
+    int free_block = DiskDriver_getFreeBlock(fs->disk, fs->current_directory_block->fcb.block_in_disk);
     if (free_block == -1)
         return -1;
 
@@ -137,7 +137,7 @@ int SimpleFS_mkDir(SimpleFS* fs, char* dirname) {
     fdb.header.previous_block = -1;
     fdb.header.next_block = -1;
     fdb.header.block_in_file = 0;
-    fdb.fcb.directory_block = fs->current_directory_block.fcb.block_in_disk;
+    fdb.fcb.directory_block = fs->current_directory_block->fcb.block_in_disk;
     fdb.fcb.block_in_disk = free_block;
     strcpy(fdb.fcb.name, dirname);
     fdb.fcb.size_in_bytes = BLOCK_SIZE;
