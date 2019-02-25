@@ -98,17 +98,17 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk);
 // and set to the top level directory
 void SimpleFS_format(SimpleFS* fs);
 
-// creates an empty file in the directory d
+// creates an empty file in the current directory
 // returns null on error (file existing, no free blocks)
 // an empty file consists only of a block of type FirstBlock
-FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename);
+FileHandle* SimpleFS_createFile(SimpleFS* fs, const char* filename);
 
 // reads in the (preallocated) blocks array, the name of all files in a directory 
 int SimpleFS_readDir(char** names, DirectoryHandle* d);
 
 
-// opens a file in the  directory d. The file should be exisiting
-FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename);
+// opens a file in the current directory. The file should be exisiting
+FileHandle* SimpleFS_openFile(SimpleFs*fs, const char* filename);
 
 
 // closes a file handle (destroyes it)
@@ -129,15 +129,16 @@ int SimpleFS_read(FileHandle* f, void* data, int size);
 // -1 on error (file too short)
 int SimpleFS_seek(FileHandle* f, int pos);
 
-// seeks for a directory in d. If dirname is equal to ".." it goes one level up
+// seeks for a directory in the current directory. 
+// if dirname is equal to ".." it goes one level up
 // 0 on success, negative value on error
 // it does side effect on the provided handle
- int SimpleFS_changeDir(DirectoryHandle* d, char* dirname);
+ int SimpleFS_changeDir(SimpleFS* fs, char* dirname);
 
 // creates a new directory in the current one (stored in fs->current_directory_block)
 // 0 on success
 // -1 on error
-int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
+int SimpleFS_mkDir(SimpleFS* fs, char* dirname);
 
 // removes the file in the current directory
 // returns -1 on failure 0 on success
