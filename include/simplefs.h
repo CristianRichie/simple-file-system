@@ -32,7 +32,7 @@ typedef struct {
 typedef struct {
   BlockHeader header;
   FileControlBlock fcb;
-  char data[BLOCK_SIZE-sizeof(FileControlBlock) - sizeof(BlockHeader)] ;
+  char data[BLOCK_SIZE-sizeof(FileControlBlock) - sizeof(BlockHeader)];
 } FirstFileBlock;
 
 // this is one of the next physical blocks of a file
@@ -119,12 +119,11 @@ int SimpleFS_close(FileHandle* f);
 // returns the number of bytes written
 int SimpleFS_write(FileHandle* f, void* data, int size);
 
-// writes in the file, at current position size bytes stored in data
-// overwriting and allocating new space if necessary
-// returns the number of bytes read
+// returns the number of bytes read (moving the current pointer to pos)
+// -1 on error
 int SimpleFS_read(FileHandle* f, void* data, int size);
 
-// returns the number of bytes read (moving the current pointer to pos)
+// moves the current pointer to pos
 // returns pos on success
 // -1 on error (file too short)
 int SimpleFS_seek(FileHandle* f, int pos);
