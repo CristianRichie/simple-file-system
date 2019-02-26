@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
+voi SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
 
     fs->disk = disk;
 
@@ -14,6 +14,7 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
 
     fs->current_directory_block = &first_dir_block;
 
+    /*
     DirectoryHandle * dir_handle = malloc(sizeof(DirectoryHandle));
     if (!dir_handle) 
         return NULL;
@@ -25,6 +26,7 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
     dir_handle->pos_in_block = 0;
 
     return dir_handle;
+    */
 }
 
 void SimpleFS_format(SimpleFS* fs) {
@@ -65,7 +67,10 @@ FileHandle* SimpleFS_openFile(SimpleFS* fs, const char* filename) {
 }
 
 int SimpleFS_close(FileHandle* f) {
-    return -1;
+    if (!f) 
+        return -1;
+    free(f);
+    return 0;
 }
 
 int SimpleFS_write(FileHandle* f, void* data, int size) {

@@ -78,6 +78,7 @@ typedef struct {
   int pos_in_file;                 // position of the cursor
 } FileHandle;
 
+/*
 typedef struct {
   SimpleFS* sfs;                   // pointer to memory file system structure
   FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
@@ -86,10 +87,10 @@ typedef struct {
   int pos_in_dir;                  // absolute position of the cursor in the directory
   int pos_in_block;                // relative position of the cursor in the block
 } DirectoryHandle;
+*/
 
 // initializes a file system on an already made disk
-// returns a handle to the top level directory stored in the first block
-DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk);
+void SimpleFS_init(SimpleFS* fs, DiskDriver* disk);
 
 // creates the inital structures, the top level directory
 // has name "/" and its control block is in the first position
@@ -104,12 +105,11 @@ void SimpleFS_format(SimpleFS* fs);
 FileHandle* SimpleFS_createFile(SimpleFS* fs, const char* filename);
 
 // reads in the (preallocated) blocks array, the name of all files in a directory 
-int SimpleFS_readDir(char** names, DirectoryHandle* d);
-
+// the directory must be inside the current one
+int SimpleFS_readDir(char** names, char* dirname);
 
 // opens a file in the current directory. The file should be exisiting
 FileHandle* SimpleFS_openFile(SimpleFS* fs, const char* filename);
-
 
 // closes a file handle (destroyes it)
 int SimpleFS_close(FileHandle* f);
