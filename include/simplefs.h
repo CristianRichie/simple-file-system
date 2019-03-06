@@ -1,6 +1,7 @@
 #pragma once
 #include <bitmap.h>
 #include <disk_driver.h>
+#include <common.h>
 
 /*these are structures stored on disk*/
 
