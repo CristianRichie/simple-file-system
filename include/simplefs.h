@@ -106,13 +106,14 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename);
 // reads in the (preallocated) blocks array, the name of all files in a directory 
 int SimpleFS_readDir(char** names, DirectoryHandle* d);
 
+// closes a directory handle (destroyes it)
+int SimpleFS_closeDir(DirectoryHandle* d);
 
 // opens a file in the  directory d. The file should be exisiting
 FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename);
 
-
 // closes a file handle (destroyes it)
-int SimpleFS_close(FileHandle* f);
+int SimpleFS_closeFile(FileHandle* f);
 
 // writes in the file, at current position for size bytes stored in data
 // overwriting and allocating new space if necessary
