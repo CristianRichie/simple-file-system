@@ -23,7 +23,7 @@ static int SimpleFS_exists(DirectoryHandle* d, const char* filename) {
         int block_num = fdb->file_blocks[idx];
         ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
         if (ret == -1)
-            return -1;
+            return 0;
         
         if (strncmp(ffb.fcb.name, filename, 128) == 0)
             return ffb.header.block_in_disk;
@@ -49,7 +49,7 @@ static int SimpleFS_exists(DirectoryHandle* d, const char* filename) {
         int block_num = db.file_blocks[idx];
         ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
         if (ret == -1)
-            return -1;
+            return 0;
         
         if (strncmp(ffb.fcb.name, filename, 128) == 0)
             return ffb.header.block_in_disk;
@@ -69,7 +69,7 @@ static int SimpleFS_exists(DirectoryHandle* d, const char* filename) {
             int block_num = db.file_blocks[idx];
             ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
             if (ret == -1)
-                return -1;
+                return 0;
 
             if (strncmp(ffb.fcb.name, filename, 128) == 0)
                 return ffb.header.block_in_disk;
@@ -133,11 +133,11 @@ void SimpleFS_format(SimpleFS* fs) {
     }
 }
 
-FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
+int SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
 
     if (SimpleFS_exists(d, filename)) {
         if (DEBUG) printf("[SFS - createFile] File already exists.\n");
-        return NULL;
+        return -1;
     }
 
     int max_entries_fdb = (BLOCK_SIZE - sizeof(BlockHeader) -
@@ -150,25 +150,25 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
     int free_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
     if (free_block == -1) {
         if (DEBUG) printf("[SFS - createFile] No free block.\n");
-        return NULL;
+        return -1;
     }
 
-    FirstFileBlock* ffb = calloc(1, sizeof(FirstFileBlock));
-    ffb->header.previous_block = -1;
-    ffb->header.next_block = -1;
-    ffb->header.block_in_file = 0;
-    ffb->header.block_in_disk = free_block;
+    FirstFileBlock ffb = {0};
+    ffb.header.previous_block = -1;
+    ffb.header.next_block = -1;
+    ffb.header.block_in_file = 0;
+    ffb.header.block_in_disk = free_block;
 
-    ffb->fcb.directory_block = fdb->header.block_in_disk;
-    ffb->fcb.size_in_bytes = BLOCK_SIZE;
-    ffb->fcb.size_in_blocks = 1;
-    ffb->fcb.is_dir = 0;
-    strncpy(ffb->fcb.name, filename, 128);
+    ffb.fcb.directory_block = fdb->header.block_in_disk;
+    ffb.fcb.size_in_bytes = BLOCK_SIZE;
+    ffb.fcb.size_in_blocks = 1;
+    ffb.fcb.is_dir = 0;
+    strncpy(ffb.fcb.name, filename, 128);
 
-    ret = DiskDriver_writeBlock(d->sfs->disk, ffb, free_block);
+    ret = DiskDriver_writeBlock(d->sfs->disk, &ffb, free_block);
     if (ret == -1) {            
         if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
-        return NULL;
+        return -1;
     }
 
     if (fdb->num_entries < max_entries_fdb) {
@@ -178,7 +178,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
         ret = DiskDriver_writeBlock(d->sfs->disk, fdb, fdb->header.block_in_disk);
         if (ret == -1) {
             if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
-            return NULL; 
+            return -1; 
         }
     }
     else {
@@ -187,7 +187,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
             int block_free_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
             if (block_free_block == -1) {
                 if (DEBUG) printf("[SFS - createFile] No free block.\n");
-                return NULL;
+                return -1;
             }
 
             DirectoryBlock new_block = {0};
@@ -205,13 +205,13 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
                 ret = DiskDriver_readBlock(d->sfs->disk, &last_block, fdb->header.next_block);
                 if (ret == -1) {
                     if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
-                    return NULL;
+                    return -1;
                 }
                 while (last_block.header.next_block != -1) {
                     ret = DiskDriver_readBlock(d->sfs->disk, &last_block, last_block.header.next_block);
                     if (ret == -1) {
                         if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
-                        return NULL;
+                        return -1;
                     }
                 }
 
@@ -223,13 +223,13 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
                 ret = DiskDriver_writeBlock(d->sfs->disk, &last_block, last_block.header.block_in_disk);
                 if (ret == -1) {
                     if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
-                    return NULL; 
+                    return -1; 
                 }
             }
             ret = DiskDriver_writeBlock(d->sfs->disk, &new_block, new_block.header.block_in_disk);
             if (ret == -1) {
                 if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
-                return NULL; 
+                return -1; 
             }
         }
         else {
@@ -237,13 +237,13 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
             ret = DiskDriver_readBlock(d->sfs->disk, &db, fdb->header.next_block);
             if (ret == -1) {
                 if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
-                return NULL;
+                return -1;
             }
             while (db.header.next_block != -1) {
                 ret = DiskDriver_readBlock(d->sfs->disk, &db, db.header.next_block);
                 if (ret == -1) {
                     if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
-                    return NULL;
+                    return -1;
                 }
             }
 
@@ -251,7 +251,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
             ret = DiskDriver_writeBlock(d->sfs->disk, &db, db.header.block_in_disk);
             if (ret == -1) {
                 if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
-                return NULL; 
+                return -1; 
             }
         }
         fdb->num_entries += 1;
@@ -259,17 +259,10 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
         ret = DiskDriver_writeBlock(d->sfs->disk, fdb, fdb->header.block_in_disk);
         if (ret == -1) {
             if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
-            return NULL; 
+            return -1; 
         }
     }
-
-    FileHandle* fh = calloc(1, sizeof(FileHandle));
-    fh->sfs = d->sfs;
-    fh->fcb = ffb;
-    fh->directory = fdb;
-    fh->current_block = &ffb->header;
-    fh->pos_in_file = 0;
-    return fh;
+    return 0;
 }
 
 int SimpleFS_readDir(char** names, DirectoryHandle* d) {
@@ -349,7 +342,35 @@ int SimpleFS_closeDir(DirectoryHandle* d) {
 }
 
 FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename) {
-    return NULL;
+
+    int block_num = SimpleFS_exists(d, filename);
+    if (block_num == 0) {
+        if (DEBUG) printf("[SFS - openFile] File doesn't exists.\n");
+        return NULL;
+    }
+
+    FirstFileBlock* ffb = calloc(1, sizeof(FirstFileBlock));
+    int ret = DiskDriver_readBlock(d->sfs->disk, ffb, block_num);
+    if (ret == -1) {
+        if (DEBUG) printf("[SFS - openFile] Cannot read from disk.\n");
+        free(ffb);
+        return NULL;
+    }
+
+    if (ffb->fcb.is_dir == 1) {
+        if (DEBUG) printf("[SFS - openFile] Cannot open a directory.\n");
+        free(ffb);
+        return NULL;
+    }
+
+    FileHandle* new_fh = calloc(1, sizeof(FileHandle));
+    new_fh->sfs = d->sfs;
+    new_fh->fcb = ffb;
+    new_fh->directory = d->dcb;
+    new_fh->current_block = &ffb->header;
+    new_fh->pos_in_file = 0;
+
+    return new_fh;
 }
 
 int SimpleFS_closeFile(FileHandle* f) {

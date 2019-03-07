@@ -99,9 +99,9 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk);
 void SimpleFS_format(SimpleFS* fs);
 
 // creates an empty file in the directory d
-// returns null on error (file existing, no free blocks)
+// returns -1 on error (file existing, no free blocks)
 // an empty file consists only of a block of type FirstBlock
-FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename);
+int SimpleFS_createFile(DirectoryHandle* d, const char* filename);
 
 // reads in the (preallocated) blocks array, the name of all files in a directory 
 int SimpleFS_readDir(char** names, DirectoryHandle* d);

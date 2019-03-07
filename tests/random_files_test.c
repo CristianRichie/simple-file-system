@@ -15,11 +15,10 @@ void generate_files(DirectoryHandle* d, char* str, unsigned index, unsigned leng
     } else {
         for (c = 'a'; c <= 'z'; ++c) {
             str[index] = c;
-            FileHandle* fh = SimpleFS_createFile(d, str);
-            if (fh == NULL) {
+            int ret = SimpleFS_createFile(d, str);
+            if (ret == -1) {
                 continue;
             }
-            SimpleFS_closeFile(fh);
             files += 1;
         }
     }
