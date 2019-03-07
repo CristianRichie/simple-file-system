@@ -131,6 +131,7 @@ int SimpleFS_read(FileHandle* f, void* data, int size);
 int SimpleFS_seek(FileHandle* f, int pos);
 
 // seeks for a directory in d. If dirname is equal to ".." it goes one level up
+// If dirname is equal to "/" it goes into the root directory
 // 0 on success, negative value on error
 // it does side effect on the provided handle
  int SimpleFS_changeDir(DirectoryHandle* d, char* dirname);
