@@ -11,13 +11,13 @@ typedef struct {
   int previous_block; // chained list (previous block)
   int next_block;     // chained list (next_block)
   int block_in_file; // position in the file, if 0 we have a file control block
+  int block_in_disk;   // repeated position of the block on the disk
 } BlockHeader;
 
 
 // this is in the first block of a chain, after the header
 typedef struct {
   int directory_block; // first block of the parent directory
-  int block_in_disk;   // repeated position of the block on the disk
   char name[128];
   int  size_in_bytes;
   int size_in_blocks;
@@ -135,15 +135,15 @@ int SimpleFS_seek(FileHandle* f, int pos);
 // it does side effect on the provided handle
  int SimpleFS_changeDir(DirectoryHandle* d, char* dirname);
 
-// creates a new directory in the current one (stored in fs->current_directory_block)
+// creates a new directory in the given directory
 // 0 on success
 // -1 on error
 int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
 
-// removes the file in the current directory
+// removes the file in the given directory
 // returns -1 on failure 0 on success
 // if a directory, it removes recursively all contained files
-int SimpleFS_remove(SimpleFS* fs, char* filename);
+int SimpleFS_remove(DirectoryHandle* d, char* filename);
 
 
   

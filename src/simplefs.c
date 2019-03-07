@@ -5,6 +5,81 @@
 #include <string.h>
 
 
+static int SimpleFS_exists(DirectoryHandle* d, const char* filename) {
+    
+    int max_entries_fdb = (BLOCK_SIZE - sizeof(BlockHeader) -
+                           sizeof(FileControlBlock) - sizeof(int)) / sizeof(int);
+    int max_entries_db = (BLOCK_SIZE - sizeof(BlockHeader)) / sizeof(int);
+
+    FirstDirectoryBlock* fdb = d->dcb;
+    int entries = fdb->num_entries;
+    int idx, ret;
+
+    for (idx = 0; idx < max_entries_fdb; idx++) {
+        if (idx >= entries)
+            return 0;
+        
+        FirstFileBlock ffb;
+        int block_num = fdb->file_blocks[idx];
+        ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
+        if (ret == -1)
+            return -1;
+        
+        if (strncmp(ffb.fcb.name, filename, 128) == 0)
+            return ffb.header.block_in_disk;
+    }
+
+    entries -= idx;
+
+    if (entries == 0)
+        return 0;
+
+    DirectoryBlock db;
+    ret = DiskDriver_readBlock(d->sfs->disk, &db, fdb->header.next_block);
+    if (ret == -1) {
+        printf("HERE\n");
+        if (DEBUG) printf("[SFS - exists] Cannot read from disk.\n");
+        return 0;
+    }
+    for (idx = 0; idx < max_entries_db; idx++) {
+        if (idx >= entries)
+            return 0;
+
+        FirstFileBlock ffb;
+        int block_num = db.file_blocks[idx];
+        ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
+        if (ret == -1)
+            return -1;
+        
+        if (strncmp(ffb.fcb.name, filename, 128) == 0)
+            return ffb.header.block_in_disk;
+    }
+    entries -= idx;
+    while (db.header.next_block != -1) {
+        ret = DiskDriver_readBlock(d->sfs->disk, &db, db.header.next_block);
+        if (ret == -1) {
+            if (DEBUG) printf("[SFS - exists] Cannot read from disk.\n");
+            return 0;
+        }
+        for (idx = 0; idx < max_entries_db; idx++) {
+            if (idx >= entries)
+                return 0;
+
+            FirstFileBlock ffb;
+            int block_num = db.file_blocks[idx];
+            ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
+            if (ret == -1)
+                return -1;
+
+            if (strncmp(ffb.fcb.name, filename, 128) == 0)
+                return ffb.header.block_in_disk;
+        }
+        entries -= idx;
+    }
+    return 0;
+}
+
+
 DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk) {
 
     fs->disk = disk;
@@ -41,9 +116,9 @@ void SimpleFS_format(SimpleFS* fs) {
     first_directory_block.header.previous_block = -1;
     first_directory_block.header.next_block = -1;
     first_directory_block.header.block_in_file = 0;
+    first_directory_block.header.block_in_disk = 0;
 
     first_directory_block.fcb.directory_block = -1;
-    first_directory_block.fcb.block_in_disk = 0;
     first_directory_block.fcb.size_in_bytes = BLOCK_SIZE; 
     first_directory_block.fcb.size_in_blocks = 1;
     first_directory_block.fcb.is_dir = 1;
@@ -59,15 +134,218 @@ void SimpleFS_format(SimpleFS* fs) {
 }
 
 FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
-    return NULL;
+
+    if (SimpleFS_exists(d, filename)) {
+        if (DEBUG) printf("[SFS - createFile] File already exists.\n");
+        return NULL;
+    }
+
+    int max_entries_fdb = (BLOCK_SIZE - sizeof(BlockHeader) -
+                           sizeof(FileControlBlock) - sizeof(int)) / sizeof(int);
+    int max_entries_db = (BLOCK_SIZE - sizeof(BlockHeader)) / sizeof(int);
+
+    FirstDirectoryBlock* fdb = d->dcb;
+
+    int ret;
+    int free_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+    if (free_block == -1) {
+        if (DEBUG) printf("[SFS - createFile] No free block.\n");
+        return NULL;
+    }
+
+    FirstFileBlock* ffb = calloc(1, sizeof(FirstFileBlock));
+    ffb->header.previous_block = -1;
+    ffb->header.next_block = -1;
+    ffb->header.block_in_file = 0;
+    ffb->header.block_in_disk = free_block;
+
+    ffb->fcb.directory_block = fdb->header.block_in_disk;
+    ffb->fcb.size_in_bytes = BLOCK_SIZE;
+    ffb->fcb.size_in_blocks = 1;
+    ffb->fcb.is_dir = 0;
+    strncpy(ffb->fcb.name, filename, 128);
+
+    ret = DiskDriver_writeBlock(d->sfs->disk, ffb, free_block);
+    if (ret == -1) {            
+        if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
+        return NULL;
+    }
+
+    if (fdb->num_entries < max_entries_fdb) {
+        fdb->file_blocks[fdb->num_entries] = free_block;
+        fdb->num_entries += 1;
+        
+        ret = DiskDriver_writeBlock(d->sfs->disk, fdb, fdb->header.block_in_disk);
+        if (ret == -1) {
+            if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
+            return NULL; 
+        }
+    }
+    else {
+        int entries = fdb->num_entries - max_entries_fdb;
+        if (entries == 0 || entries % max_entries_db == 0) {
+            int block_free_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+            if (block_free_block == -1) {
+                if (DEBUG) printf("[SFS - createFile] No free block.\n");
+                return NULL;
+            }
+
+            DirectoryBlock new_block = {0};
+            new_block.header.next_block = -1;
+            new_block.header.block_in_disk = block_free_block;
+
+            if (entries == 0) {
+                new_block.header.block_in_file = fdb->header.block_in_file + 1;
+                new_block.header.previous_block = fdb->header.block_in_disk;
+                new_block.file_blocks[0] = free_block;
+                fdb->header.next_block = block_free_block;
+            }
+            else {
+                DirectoryBlock last_block;
+                ret = DiskDriver_readBlock(d->sfs->disk, &last_block, fdb->header.next_block);
+                if (ret == -1) {
+                    if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
+                    return NULL;
+                }
+                while (last_block.header.next_block != -1) {
+                    ret = DiskDriver_readBlock(d->sfs->disk, &last_block, last_block.header.next_block);
+                    if (ret == -1) {
+                        if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
+                        return NULL;
+                    }
+                }
+
+                new_block.header.block_in_file = last_block.header.block_in_file + 1;
+                new_block.header.previous_block = last_block.header.block_in_disk;
+                new_block.file_blocks[0] = free_block;
+                last_block.header.next_block = block_free_block;
+
+                ret = DiskDriver_writeBlock(d->sfs->disk, &last_block, last_block.header.block_in_disk);
+                if (ret == -1) {
+                    if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
+                    return NULL; 
+                }
+            }
+            ret = DiskDriver_writeBlock(d->sfs->disk, &new_block, new_block.header.block_in_disk);
+            if (ret == -1) {
+                if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
+                return NULL; 
+            }
+        }
+        else {
+            DirectoryBlock db;
+            ret = DiskDriver_readBlock(d->sfs->disk, &db, fdb->header.next_block);
+            if (ret == -1) {
+                if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
+                return NULL;
+            }
+            while (db.header.next_block != -1) {
+                ret = DiskDriver_readBlock(d->sfs->disk, &db, db.header.next_block);
+                if (ret == -1) {
+                    if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
+                    return NULL;
+                }
+            }
+
+            db.file_blocks[entries % max_entries_db] = free_block;
+            ret = DiskDriver_writeBlock(d->sfs->disk, &db, db.header.block_in_disk);
+            if (ret == -1) {
+                if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
+                return NULL; 
+            }
+        }
+        fdb->num_entries += 1;
+
+        ret = DiskDriver_writeBlock(d->sfs->disk, fdb, fdb->header.block_in_disk);
+        if (ret == -1) {
+            if (DEBUG) printf("[SFS - createFile] Cannot write on disk.\n");
+            return NULL; 
+        }
+    }
+
+    FileHandle* fh = calloc(1, sizeof(FileHandle));
+    fh->sfs = d->sfs;
+    fh->fcb = ffb;
+    fh->directory = fdb;
+    fh->current_block = &ffb->header;
+    fh->pos_in_file = 0;
+    return fh;
 }
 
 int SimpleFS_readDir(char** names, DirectoryHandle* d) {
-    return -1;
+ 
+    int max_entries_fdb = (BLOCK_SIZE - sizeof(BlockHeader) -
+                           sizeof(FileControlBlock) - sizeof(int)) / sizeof(int);
+    int max_entries_db = (BLOCK_SIZE - sizeof(BlockHeader)) / sizeof(int);
+
+    FirstDirectoryBlock* fdb = d->dcb;
+    int entries = fdb->num_entries;
+    int idx, ret;
+
+    for (idx = 0; idx < max_entries_fdb; idx++) {
+        if (idx >= entries)
+            return 0;
+        
+        FirstFileBlock ffb;
+        int block_num = fdb->file_blocks[idx];
+        ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
+        if (ret == -1)
+            return -1;
+
+        names[idx] = strndup(ffb.fcb.name, 128);
+    }
+
+    entries -= idx;
+    DirectoryBlock db;
+    ret = DiskDriver_readBlock(d->sfs->disk, &db, fdb->header.next_block);
+    if (ret == -1) {
+        if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
+        return 0;
+    }
+    for (idx = 0; idx < max_entries_db; idx++) {
+        if (idx >= entries)
+            return 0;
+
+        FirstFileBlock ffb;
+        int block_num = db.file_blocks[idx];
+        ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
+        if (ret == -1)
+            return -1;
+        
+        int names_idx = max_entries_fdb + idx + max_entries_db * (db.header.block_in_file - 1); 
+        names[names_idx] = strndup(ffb.fcb.name, 128); 
+    }
+    entries -= idx;
+    while (db.header.next_block != -1) {
+        ret = DiskDriver_readBlock(d->sfs->disk, &db, db.header.next_block);
+        if (ret == -1) {
+            if (DEBUG) printf("[SFS - createFile] Cannot read from disk.\n");
+            return 0;
+        }
+        for (idx = 0; idx < max_entries_db; idx++) {
+            if (idx >= entries)
+                return 0;
+
+            FirstFileBlock ffb;
+            int block_num = db.file_blocks[idx];
+            ret = DiskDriver_readBlock(d->sfs->disk, &ffb, block_num);
+            if (ret == -1)
+                return -1;
+
+            int names_idx = max_entries_fdb + idx + max_entries_db * (db.header.block_in_file - 1); 
+            names[names_idx] = strndup(ffb.fcb.name, 128); 
+        }
+        entries -= idx;
+    }
+    return 0;
 }
 
 int SimpleFS_closeDir(DirectoryHandle* d) {
-    return -1;
+    if (d->directory != NULL)
+        free(d->directory);
+    free(d->dcb);
+    free(d);
+    return 0;
 }
 
 FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename) {
@@ -75,7 +353,9 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename) {
 }
 
 int SimpleFS_closeFile(FileHandle* f) {
-    return -1;
+    free(f->fcb);
+    free(f);
+    return 0;
 }
 
 int SimpleFS_write(FileHandle* f, void* data, int size) {
@@ -98,6 +378,6 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname) {
     return -1;
 }
 
-int SimpleFS_remove(SimpleFS* fs, char* filename) {
+int SimpleFS_remove(DirectoryHandle* d, char* filename) {
     return -1;
 }

@@ -19,4 +19,4 @@ run:
 	./run_tests.sh
 
 clean:
-	rm -rf $(BINS) *.img
+	rm -rf $(BINS) *.img vgcore*
