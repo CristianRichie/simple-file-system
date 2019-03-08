@@ -255,6 +255,8 @@ int SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
             }
         }
         fdb->num_entries += 1;
+        fdb->fcb.size_in_bytes += BLOCK_SIZE;
+        fdb->fcb.size_in_blocks += 1;
 
         ret = DiskDriver_writeBlock(d->sfs->disk, fdb, fdb->header.block_in_disk);
         if (ret == -1) {
@@ -598,6 +600,8 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname) {
             }
         }
         fdb->num_entries += 1;
+        fdb->fcb.size_in_bytes += BLOCK_SIZE;
+        fdb->fcb.size_in_blocks += 1;
 
         ret = DiskDriver_writeBlock(d->sfs->disk, fdb, fdb->header.block_in_disk);
         if (ret == -1) {
