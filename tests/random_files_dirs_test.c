@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
         if (something == NULL) printf("dir: ");
         else { 
             printf("file: ");
-            free(something);
+            SimpleFS_closeFile(something);
         }
         
         printf("%s\n", names[i]);
