@@ -45,6 +45,10 @@ int main(int argc, char* argv[]) {
         printf("File/Dir: %s\n", names[i]);   
     printf("**********************\n");
 
+    for (i = 0; i < current_dir->dcb->num_entries; i++) 
+        free(names[i]);   
+    free(names);
+
     FileHandle* test0_fh = SimpleFS_openFile(current_dir, "test0.txt"); 
     if (test0_fh == NULL) {
         printf("Something went wrong while opening file.\n");
@@ -58,10 +62,6 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE); 
     }
     printf("Opened file: %s\n", test1_fh->fcb->fcb.name);
-
-    for (i = 0; i < current_dir->dcb->num_entries; i++) 
-        free(names[i]);   
-    free(names);
 
     SimpleFS_closeFile(test0_fh);
 
@@ -116,21 +116,65 @@ int main(int argc, char* argv[]) {
     }
     printf("Position in file after write: %d\n", test1_fh->pos_in_file);
 
-    /*ret = SimpleFS_seek(f, 0);
+    ret = SimpleFS_seek(test1_fh, 0);
     if (ret != 0) {
+        printf("HERE %d\n", ret);
         printf("Something went wrong while seeking.\n");
         exit(EXIT_FAILURE); 
-    } */
-    test1_fh->pos_in_file = 0;
-    test1_fh->current_block = &test1_fh->fcb->header;
+    } 
     printf("Position in file after seek: %d\n", test1_fh->pos_in_file);
 
+    printf("Reading from file\n");
     char* output = calloc(1025, sizeof(char));
     ret = SimpleFS_read(test1_fh, output, 1024);
     if (ret != 1024 && strcmp(input, output) != 0) {
         printf("Something went wrong while reading from file.\n");
         exit(EXIT_FAILURE); 
     }
+ 
+    ret = SimpleFS_seek(test1_fh, 0);
+    if (ret != 0) {
+        printf("Something went wrong while seeking.\n");
+        exit(EXIT_FAILURE); 
+    } 
+
+    ret = SimpleFS_seek(test1_fh, 600);
+    if (ret != 600) {
+        printf("Something went wrong while seeking.\n");
+        exit(EXIT_FAILURE); 
+    } 
+    printf("Position in file after seek: %d\n", test1_fh->pos_in_file);
+
+    ret = SimpleFS_seek(test1_fh, 1800);
+    if (ret != 1024) {
+        printf("Something went wrong while seeking.\n");
+        exit(EXIT_FAILURE); 
+    } 
+
+    printf("Reading from file\n");
+    int to_read = test1_fh->fcb->fcb.size_in_bytes - test1_fh->pos_in_file;
+    ret = SimpleFS_read(test1_fh, output, to_read);
+    if (ret != to_read) {
+        printf("HERE %d\n", ret);
+        printf("Something went wrong while reading from file.\n");
+        exit(EXIT_FAILURE); 
+    }
+
+    names = calloc(current_dir->dcb->num_entries, sizeof(char*));    
+    ret = SimpleFS_readDir(names, current_dir);
+    if (ret == -1) {
+        printf("Something went wrong while listing dir files.\n");
+        exit(EXIT_FAILURE); 
+    }
+
+    printf("***** LIST FILES *****\n");
+    for (i = 0; i < current_dir->dcb->num_entries; i++) 
+        printf("File/Dir: %s\n", names[i]);   
+    printf("**********************\n");
+
+    for (i = 0; i < current_dir->dcb->num_entries; i++) 
+        free(names[i]);   
+    free(names);
 
     SimpleFS_closeFile(test1_fh);
     SimpleFS_closeDir(current_dir);

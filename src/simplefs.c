@@ -158,7 +158,7 @@ int SimpleFS_createFile(DirectoryHandle* d, const char* filename) {
     ffb.header.block_in_disk = free_block;
 
     ffb.fcb.directory_block = fdb->header.block_in_disk;
-    ffb.fcb.size_in_bytes = BLOCK_SIZE;
+    ffb.fcb.size_in_bytes = 0;
     ffb.fcb.size_in_blocks = 1;
     ffb.fcb.is_dir = 0;
     strncpy(ffb.fcb.name, filename, 128);
@@ -400,6 +400,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size) {
             }
         }
         f->pos_in_file += size;
+        f->fcb->fcb.size_in_bytes += size;
 
         ret = DiskDriver_writeBlock(f->sfs->disk, f->fcb, f->fcb->header.block_in_disk);
         if (ret == -1) {
@@ -423,7 +424,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size) {
         }
 
         f->pos_in_file += free_space;
-        f->fcb->fcb.size_in_bytes += BLOCK_SIZE;
+        f->fcb->fcb.size_in_bytes += free_space;
         f->fcb->fcb.size_in_blocks += 1;
 
         FileBlock* next = calloc(1, sizeof(FileBlock));
@@ -472,14 +473,14 @@ int SimpleFS_write(FileHandle* f, void* data, int size) {
 
 int SimpleFS_read(FileHandle* f, void* data, int size) {
 
-    int available_bytes, ret;
+    int readable_bytes, ret;
 
     if (f->current_block->block_in_file == 0) 
-        available_bytes = max_data_ffb - f->pos_in_file;
+        readable_bytes = max_data_ffb - f->pos_in_file;
     else 
-        available_bytes = max_data_fb - ((f->pos_in_file - max_data_ffb) % max_data_fb);
+        readable_bytes = max_data_fb - ((f->pos_in_file - max_data_ffb) % max_data_fb);
 
-    if (size <= available_bytes) {
+    if (size <= readable_bytes) {
         if (f->current_block->block_in_file == 0) 
             memcpy(data, f->fcb->data, size);
         else
@@ -490,10 +491,10 @@ int SimpleFS_read(FileHandle* f, void* data, int size) {
     }
     else {
         if (f->current_block->block_in_file == 0) 
-            memcpy(data, f->fcb->data, available_bytes);
+            memcpy(data, f->fcb->data, readable_bytes);
         else
-            memcpy(data, ((FileBlock*) f->current_block)->data, available_bytes);
-        f->pos_in_file += available_bytes;
+            memcpy(data, ((FileBlock*) f->current_block)->data, readable_bytes);
+        f->pos_in_file += readable_bytes;
 
         if (f->current_block->next_block != -1) {     
 
@@ -509,19 +510,76 @@ int SimpleFS_read(FileHandle* f, void* data, int size) {
             
             f->current_block = &next->header;
 
-            int read = SimpleFS_read(f, data + available_bytes, size - available_bytes);
+            int read = SimpleFS_read(f, data + readable_bytes, size - readable_bytes);
             if (read == -1)
                 return -1;
-            return available_bytes + read;
+            return readable_bytes + read;
         }
         else {
-            return available_bytes;
+            return readable_bytes;
         }
     }
 }
 
 int SimpleFS_seek(FileHandle* f, int pos) {
-    return -1;
+
+    if (pos < 0)
+        return -1;
+
+    int new_pos_block_num, ret;
+    if (pos <= max_data_ffb) 
+        new_pos_block_num = 0;
+    else
+        new_pos_block_num = (pos - max_data_ffb) / max_data_fb;
+
+    if (pos <= f->pos_in_file) {
+        if (new_pos_block_num == f->current_block->block_in_file) {
+            f->pos_in_file = pos;
+            return pos;
+        }
+        else {
+            FileBlock* prev = calloc(1, sizeof(FileBlock));
+            ret = DiskDriver_readBlock(f->sfs->disk, prev, f->current_block->previous_block);
+            if (ret == -1) {
+                if (DEBUG) printf("[SFS - seek] Cannot read from disk.\n");
+                return -1; 
+            }
+
+            if (f->current_block != (BlockHeader*) f->fcb)
+                free(f->current_block);
+            
+            f->current_block = &prev->header;
+            f->pos_in_file -= (f->pos_in_file - max_data_ffb) % max_data_fb;
+
+            return SimpleFS_seek(f, pos);
+        }
+    }
+    else {
+        if (new_pos_block_num == f->current_block->block_in_file) {
+            if (pos > f->fcb->fcb.size_in_bytes) {
+                f->pos_in_file = f->fcb->fcb.size_in_bytes;
+                return f->pos_in_file;
+            }
+            f->pos_in_file = pos;
+            return pos;
+        }
+        else {
+            FileBlock* next = calloc(1, sizeof(FileBlock));
+            ret = DiskDriver_readBlock(f->sfs->disk, next, f->current_block->next_block);
+            if (ret == -1) {
+                if (DEBUG) printf("[SFS - seek] Cannot read from disk.\n");
+                return -1; 
+            }
+
+            if (f->current_block != (BlockHeader*) f->fcb)
+                free(f->current_block);
+            
+            f->current_block = &next->header;
+            f->pos_in_file += max_data_fb - ((f->pos_in_file - max_data_ffb) % max_data_fb);
+
+            return SimpleFS_seek(f, pos);
+        }
+    }
 }
 
 int SimpleFS_changeDir(DirectoryHandle* d, char* dirname) {
