@@ -1,6 +1,7 @@
 #include <simplefs.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char* argv[]) {
    
@@ -63,7 +64,6 @@ int main(int argc, char* argv[]) {
     free(names);
 
     SimpleFS_closeFile(test0_fh);
-    SimpleFS_closeFile(test1_fh);
 
     ret = SimpleFS_mkDir(current_dir, "testdir");
     if (ret == -1) {
@@ -107,7 +107,36 @@ int main(int argc, char* argv[]) {
     }
     printf("Current directory: %s\n", current_dir->dcb->fcb.name);
 
+    char* input = calloc(1025, sizeof(char));
+    memset(input, 0x61, 1024);
+    ret = SimpleFS_write(test1_fh, input, 1024);
+    if (ret != 1024) {
+        printf("Something went wrong while writing on file.\n");
+        exit(EXIT_FAILURE); 
+    }
+    printf("Position in file after write: %d\n", test1_fh->pos_in_file);
+
+    /*ret = SimpleFS_seek(f, 0);
+    if (ret != 0) {
+        printf("Something went wrong while seeking.\n");
+        exit(EXIT_FAILURE); 
+    } */
+    test1_fh->pos_in_file = 0;
+    test1_fh->current_block = &test1_fh->fcb->header;
+    printf("Position in file after seek: %d\n", test1_fh->pos_in_file);
+
+    char* output = calloc(1025, sizeof(char));
+    ret = SimpleFS_read(test1_fh, output, 1024);
+    if (ret != 1024 && strcmp(input, output) != 0) {
+        printf("Something went wrong while reading from file.\n");
+        exit(EXIT_FAILURE); 
+    }
+
+    SimpleFS_closeFile(test1_fh);
     SimpleFS_closeDir(current_dir);
+
+    free(input);
+    free(output);
     printf("TEST COMPLETED. SUCCESS.\n");
     return 0; 
 }
