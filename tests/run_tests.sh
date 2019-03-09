@@ -1,10 +1,14 @@
 #!/bin/sh
 
 tests=0
+vcompleted_test=0
 echo ""
 for i in $(find . -exec file {} \; | grep -i elf | awk '{print $1}' | awk '{print substr($0, 1, length($0)-1)}'); do
     echo "***** RUNNING vagrind $i *****";
-    valgrind $i
+    valgrind --error-exitcode=1 $i
+    if [ $? == 0 ]; then
+        vcompleted_test=$((vcompleted_test + 1))
+    fi;
     tests=$((tests + 1))
     echo ""
     echo ""
@@ -27,4 +31,5 @@ for i in $(find . -exec file {} \; | grep -i elf | awk '{print $1}' | awk '{prin
     echo ""
 done;
 
-echo "TEST COMPLETED: $completed_test/$tests";
+echo "VALGRIND COMPLETED TEST: $vcompleted_test/$tests";
+echo "COMPLETED TEST: $completed_test/$tests";
