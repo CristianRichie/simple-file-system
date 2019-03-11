@@ -18,6 +18,7 @@ typedef struct {
 // this is in the first block of a chain, after the header
 typedef struct {
   int directory_block; // first block of the parent directory
+  int idx_in_directory;
   char name[128];
   int  size_in_bytes;
   int size_in_blocks;
@@ -143,7 +144,7 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
 
 // removes the file in the given directory
 // returns -1 on failure 0 on success
-// if a directory, it removes recursively all contained files
+// if a directory, it removes it only if it's empty
 int SimpleFS_remove(DirectoryHandle* d, char* filename);
 
 

@@ -177,10 +177,39 @@ int main(int argc, char* argv[]) {
     free(names);
 
     SimpleFS_closeFile(test1_fh);
-    SimpleFS_closeDir(current_dir);
+
+    ret = SimpleFS_remove(current_dir, "testdir");
+    if (ret != -1) {
+        printf("Something went wrong while removing dir.\n");
+        exit(EXIT_FAILURE); 
+    }
+
+    ret = SimpleFS_remove(current_dir, "test0.txt");
+    if (ret == -1) {
+        printf("Something went wrong while removing file.\n");
+        exit(EXIT_FAILURE); 
+    }
+    printf("Removed test0.txt\n");
+
+    names = calloc(current_dir->dcb->num_entries, sizeof(char*));    
+    ret = SimpleFS_readDir(names, current_dir);
+    if (ret == -1) {
+        printf("Something went wrong while listing dir files.\n");
+        exit(EXIT_FAILURE); 
+    }
+
+    printf("***** LIST FILES *****\n");
+    for (i = 0; i < current_dir->dcb->num_entries; i++) 
+        printf("File/Dir: %s\n", names[i]);   
+    printf("**********************\n");
+
+    for (i = 0; i < current_dir->dcb->num_entries; i++) 
+        free(names[i]);   
+    free(names);
 
     free(input);
     free(output);
+    SimpleFS_closeDir(current_dir);
     printf("TEST COMPLETED. SUCCESS.\n");
     return 0; 
 }
