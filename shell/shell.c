@@ -24,6 +24,8 @@ void format(int argc, char* argv[MAX_ARGUMENTS_NUM + 1]) {
         return;
     }
     SimpleFS_format(&fs);
+    SimpleFS_closeDir(current_dir);
+    current_dir = SimpleFS_init(&fs, &disk);
 }
 
 /*
@@ -257,7 +259,6 @@ void rm(int argc, char* argv[MAX_ARGUMENTS_NUM + 1]) {
  */
 void rmf_aux(DirectoryHandle* p, char* name) {
     
-    printf("ENTER %s %s\n", p->dcb->fcb.name, name);
     int ret = SimpleFS_remove(p, name);
     if (ret == -1) {
         ret = SimpleFS_changeDir(p, name);
