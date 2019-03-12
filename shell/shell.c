@@ -263,7 +263,6 @@ void rmf_aux(DirectoryHandle* p, char* name) {
     if (ret == -1) {
         ret = SimpleFS_changeDir(p, name);
         if (ret == -1) {
-            printf("ENTER %s %s\n", p->dcb->fcb.name, name);
             fprintf(stderr, "An error occurred while changing dir.\n");
             return; 
         }
@@ -286,7 +285,7 @@ void rmf_aux(DirectoryHandle* p, char* name) {
 
         SimpleFS_changeDir(p, "..");
 
-        for (i = 0; i < p->dcb->num_entries; i++) 
+        for (i = 0; i < entries; i++) 
             free(names[i]);   
         free(names);
 
